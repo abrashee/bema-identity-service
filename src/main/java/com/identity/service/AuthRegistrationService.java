@@ -13,6 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.slf4j.MDC;
 
 import java.util.Map;
 import java.util.UUID;
@@ -66,9 +67,16 @@ public class AuthRegistrationService {
         // users whose profile could not be created.
         String internalToken = jwtService.generateInternalServiceToken("identity-service");
         try {
+            String correlationId = MDC.get("correlationId");
+
             userServiceWebClient.post()
                     .uri("/api/users/internal")
                     .header("Authorization", "Bearer " + internalToken)
+                    .headers(headers -> {
+                        if (correlationId != null && !correlationId.isBlank()) {
+                            headers.set("X-Correlation-ID", correlationId);
+                        }
+                    })
                     .bodyValue(Map.of(
                             "identityId", entity.getUserId(),
                             "email", entity.getEmail(),
