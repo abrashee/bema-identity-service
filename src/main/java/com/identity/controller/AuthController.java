@@ -9,6 +9,9 @@ import com.identity.dto.LogoutRequestDto;
 import com.identity.service.AuthRegistrationService;
 import com.identity.service.AuthLoginService;
 import com.identity.service.RefreshTokenService;
+import com.identity.jwt.JwtService;
+import com.identity.security.AccessTokenRevocationService;
+import com.identity.exception.AuthException;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -20,13 +23,21 @@ public class AuthController {
     private final AuthLoginService authLoginService;
     private final AuthRegistrationService authRegistrationService;
     private final RefreshTokenService refreshTokenService;
+    private final JwtService jwtService;
+    private final AccessTokenRevocationService accessTokenRevocationService;
 
-    public AuthController(AuthLoginService authLoginService,
-                          AuthRegistrationService authRegistrationService,
-                          RefreshTokenService refreshTokenService) {
+    public AuthController(
+            AuthLoginService authLoginService,
+            AuthRegistrationService authRegistrationService,
+            RefreshTokenService refreshTokenService,
+            JwtService jwtService,
+            AccessTokenRevocationService accessTokenRevocationService
+    ) {
         this.authLoginService = authLoginService;
         this.authRegistrationService = authRegistrationService;
         this.refreshTokenService = refreshTokenService;
+        this.jwtService = jwtService;
+        this.accessTokenRevocationService = accessTokenRevocationService;
     }
 
     @PostMapping("/login")
@@ -72,7 +83,21 @@ public class AuthController {
     public ResponseEntity<ApiResponse<Void>> logout(
             @Valid @RequestBody LogoutRequestDto request
     ) {
-        refreshTokenService.revoke(request.refreshToken());
+        JwtService.AccessTokenMetadata accessToken =
+                jwtService.extractAccessTokenMetadata(request.accessToken());
+
+        String refreshTokenUserId =
+                refreshTokenService.validateAndGetUserId(request.refreshToken());
+
+        if (!refreshTokenUserId.equals(accessToken.subject())) {
+            throw new AuthException("Invalid logout token pair");
+        }
+
+        refreshTokenService.revokeAndGetUserId(request.refreshToken());
+        accessTokenRevocationService.revoke(
+                accessToken.tokenId(),
+                accessToken.expiresAt()
+        );
 
         return ResponseEntity.ok(
                 new ApiResponse<>(

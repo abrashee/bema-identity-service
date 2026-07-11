@@ -86,11 +86,18 @@ public class RefreshTokenService {
     }
 
     @Transactional
-    public void revoke(String refreshToken) {
-        repository.findByTokenHash(hash(refreshToken)).ifPresent(token -> {
-            token.setRevokedAt(Instant.now());
-            repository.save(token);
-        });
+    public String revokeAndGetUserId(String refreshToken) {
+        AuthRefreshTokenEntity token = repository.findByTokenHash(hash(refreshToken))
+                .orElseThrow(() -> new AuthException("Invalid refresh token"));
+
+        if (token.getRevokedAt() != null || token.getExpiresAt().isBefore(Instant.now())) {
+            throw new AuthException("Invalid refresh token");
+        }
+
+        token.setRevokedAt(Instant.now());
+        repository.save(token);
+
+        return token.getUserId();
     }
 
     private void revokeActiveForUser(String userId, String replacementId) {
