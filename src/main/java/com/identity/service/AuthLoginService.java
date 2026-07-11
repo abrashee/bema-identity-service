@@ -7,6 +7,7 @@ import com.identity.entity.AuthUserEntity;
 import com.identity.exception.AuthException;
 import com.identity.jwt.JwtService;
 import com.identity.repository.AuthUserRepository;
+import com.identity.security.LoginBruteForceProtectionService;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -17,15 +18,20 @@ public class AuthLoginService {
     private final JwtService jwtService;
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
+    private final LoginBruteForceProtectionService bruteForceProtectionService;
 
-    public AuthLoginService(AuthUserRepository authUserRepository,
-                       JwtService jwtService,
-                       PasswordEncoder passwordEncoder,
-                       RefreshTokenService refreshTokenService) {
+    public AuthLoginService(
+            AuthUserRepository authUserRepository,
+            JwtService jwtService,
+            PasswordEncoder passwordEncoder,
+            RefreshTokenService refreshTokenService,
+            LoginBruteForceProtectionService bruteForceProtectionService
+    ) {
         this.authUserRepository = authUserRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
+        this.bruteForceProtectionService = bruteForceProtectionService;
     }
 
     public AuthResponseDto refresh(String refreshToken) {
@@ -52,19 +58,31 @@ public class AuthLoginService {
     }
 
     public AuthResponseDto login(LoginRequestDto request) {
+        String email = request.getEmail();
 
-        var authUser = authUserRepository.findByEmail(request.getEmail())
-                .orElseThrow(() -> new AuthException("Invalid credentials"));
-
-        if (!passwordEncoder.matches(request.getPassword(), authUser.getPasswordHash())) {
+        if (bruteForceProtectionService.isLocked(email)) {
             throw new AuthException("Invalid credentials");
         }
+
+        var authUser = authUserRepository.findByEmail(email).orElse(null);
+
+        if (authUser == null
+                || !passwordEncoder.matches(
+                        request.getPassword(),
+                        authUser.getPasswordHash()
+                )) {
+            bruteForceProtectionService.recordFailure(email);
+            throw new AuthException("Invalid credentials");
+        }
+
+        bruteForceProtectionService.recordSuccess(email);
 
         String token = jwtService.generateUserToken(
                 authUser.getUserId(),
                 authUser.getRole().name()
         );
-        String refreshToken = refreshTokenService.issueForUser(authUser.getUserId());
+        String refreshToken =
+                refreshTokenService.issueForUser(authUser.getUserId());
 
         return new AuthResponseDto(
                 token,
