@@ -30,11 +30,15 @@ public class AuthLoginService {
 
     public AuthResponseDto refresh(String refreshToken) {
         String userId = refreshTokenService.validateAndGetUserId(refreshToken);
-        String newRefreshToken = refreshTokenService.rotate(refreshToken);
-        String token = jwtService.generateToken(userId);
 
         var authUser = authUserRepository.findById(userId)
                 .orElseThrow(() -> new AuthException("Invalid refresh token"));
+
+        String newRefreshToken = refreshTokenService.rotate(refreshToken);
+        String token = jwtService.generateUserToken(
+                authUser.getUserId(),
+                authUser.getRole().name()
+        );
 
         return new AuthResponseDto(
                 token,
@@ -56,7 +60,10 @@ public class AuthLoginService {
             throw new AuthException("Invalid credentials");
         }
 
-        String token = jwtService.generateToken(authUser.getUserId());
+        String token = jwtService.generateUserToken(
+                authUser.getUserId(),
+                authUser.getRole().name()
+        );
         String refreshToken = refreshTokenService.issueForUser(authUser.getUserId());
 
         return new AuthResponseDto(

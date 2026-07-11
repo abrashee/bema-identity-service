@@ -40,6 +40,14 @@ public class JwtService {
         return generateToken(userId, Map.of(), expirationMs);
     }
 
+    public String generateUserToken(String userId, String role) {
+        return generateToken(
+                userId,
+                Map.of("role", role),
+                expirationMs
+        );
+    }
+
     public String generateInternalServiceToken(String serviceName) {
         return generateToken(
                 serviceName,

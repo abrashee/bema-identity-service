@@ -4,6 +4,7 @@ import com.identity.dto.AuthResponseDto;
 import com.identity.dto.AuthUserCreateRequest;
 import com.identity.dto.UserResponseDto;
 import com.identity.entity.AuthUserEntity;
+import com.identity.entity.AuthUserRole;
 import com.identity.exception.AuthException;
 import com.identity.jwt.JwtService;
 import com.identity.repository.AuthUserRepository;
@@ -60,6 +61,7 @@ public class AuthRegistrationService {
         entity.setUserId(UUID.randomUUID().toString());
         entity.setEmail(request.email());
         entity.setPasswordHash(passwordEncoder.encode(request.password()));
+        entity.setRole(AuthUserRole.USER);
 
         authUserRepository.save(entity);
 
@@ -91,7 +93,10 @@ public class AuthRegistrationService {
         }
 
         // 4. Return something meaningful (not a magic string)
-        String token = jwtService.generateToken(entity.getUserId());
+        String token = jwtService.generateUserToken(
+                entity.getUserId(),
+                entity.getRole().name()
+        );
         String refreshToken = refreshTokenService.issueForUser(entity.getUserId());
 
         return new AuthResponseDto(

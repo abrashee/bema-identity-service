@@ -16,12 +16,22 @@ public class AuthUserEntity {
     @Column(nullable = false)
     private String passwordHash;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private AuthUserRole role = AuthUserRole.USER;
+
     public AuthUserEntity() {}
 
-    public AuthUserEntity(String userId, String email, String passwordHash) {
+    public AuthUserEntity(
+            String userId,
+            String email,
+            String passwordHash,
+            AuthUserRole role
+    ) {
         this.userId = userId;
         this.email = email;
         this.passwordHash = passwordHash;
+        this.role = role;
     }
 
     public String getUserId() {
@@ -46,5 +56,14 @@ public class AuthUserEntity {
 
     public void setPasswordHash(String passwordHash) {
         this.passwordHash = passwordHash;
+    }
+
+
+    public AuthUserRole getRole() {
+        return role;
+    }
+
+    public void setRole(AuthUserRole role) {
+        this.role = role;
     }
 }
