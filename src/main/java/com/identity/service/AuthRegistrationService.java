@@ -105,7 +105,8 @@ public class AuthRegistrationService {
                 new UserResponseDto(
                         entity.getUserId(),
                         entity.getEmail(),
-                        request.name()
+                        request.name(),
+                        entity.getRole().name()
                 )
         );
 }

@@ -52,7 +52,8 @@ public class AuthLoginService {
                 new UserResponseDto(
                         authUser.getUserId(),
                         authUser.getEmail(),
-                        null
+                        null,
+                        authUser.getRole().name()
                 )
         );
     }
@@ -90,7 +91,8 @@ public class AuthLoginService {
                 new UserResponseDto(
                         authUser.getUserId(),
                         authUser.getEmail(),
-                        null
+                        null,
+                        authUser.getRole().name()
                 )
         );
     }
