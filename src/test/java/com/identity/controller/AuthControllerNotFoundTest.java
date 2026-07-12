@@ -1,5 +1,6 @@
 package com.identity.controller;
 
+import com.identity.audit.SecurityAuditLogger;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -38,6 +39,9 @@ class AuthControllerNotFoundTest {
 
     @MockBean
     private AccessTokenRevocationService accessTokenRevocationService;
+
+    @MockBean
+    private SecurityAuditLogger auditLogger;
 
     @Test
     void unsupportedAuthenticationMethodReturnsMethodNotAllowed()

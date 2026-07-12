@@ -1,5 +1,6 @@
 package com.identity.security;
 
+import com.identity.audit.SecurityAuditLogger;
 import org.junit.jupiter.api.Test;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
@@ -29,7 +30,8 @@ class LoginBruteForceProtectionServiceTest {
                         redisTemplate,
                         3,
                         900,
-                        900
+                        900,
+                        mock(SecurityAuditLogger.class)
                 );
 
         service.recordFailure(" User@Example.com ");
@@ -64,7 +66,8 @@ class LoginBruteForceProtectionServiceTest {
                         redisTemplate,
                         5,
                         900,
-                        900
+                        900,
+                        mock(SecurityAuditLogger.class)
                 );
 
         assertTrue(service.isLocked(" USER@EXAMPLE.COM "));
@@ -82,7 +85,8 @@ class LoginBruteForceProtectionServiceTest {
                         redisTemplate,
                         5,
                         900,
-                        900
+                        900,
+                        mock(SecurityAuditLogger.class)
                 );
 
         assertFalse(service.isLocked("user@example.com"));
@@ -97,7 +101,8 @@ class LoginBruteForceProtectionServiceTest {
                         redisTemplate,
                         5,
                         900,
-                        900
+                        900,
+                        mock(SecurityAuditLogger.class)
                 );
 
         service.recordSuccess(" User@Example.com ");

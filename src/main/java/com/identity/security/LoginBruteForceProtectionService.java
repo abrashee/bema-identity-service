@@ -1,5 +1,6 @@
 package com.identity.security;
 
+import com.identity.audit.SecurityAuditLogger;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
@@ -17,12 +18,14 @@ public class LoginBruteForceProtectionService {
     private final int maxFailures;
     private final Duration failureWindow;
     private final Duration lockDuration;
+    private final SecurityAuditLogger auditLogger;
 
     public LoginBruteForceProtectionService(
             StringRedisTemplate redisTemplate,
             @Value("${security.brute-force.max-failures:5}") int maxFailures,
             @Value("${security.brute-force.failure-window-seconds:900}") long failureWindowSeconds,
-            @Value("${security.brute-force.lock-seconds:900}") long lockSeconds
+            @Value("${security.brute-force.lock-seconds:900}") long lockSeconds,
+            SecurityAuditLogger auditLogger
     ) {
         if (maxFailures <= 0) {
             throw new IllegalStateException("Brute-force max failures must be positive");
@@ -35,6 +38,7 @@ public class LoginBruteForceProtectionService {
         this.maxFailures = maxFailures;
         this.failureWindow = Duration.ofSeconds(failureWindowSeconds);
         this.lockDuration = Duration.ofSeconds(lockSeconds);
+        this.auditLogger = auditLogger;
     }
 
     public boolean isLocked(String email) {
@@ -60,6 +64,11 @@ public class LoginBruteForceProtectionService {
                     lockDuration
             );
             redisTemplate.delete(failureKey);
+            auditLogger.denied(
+                    "AUTH_ACCOUNT_LOCK",
+                    auditLogger.fingerprint(normalizedEmail),
+                    "FAILURE_THRESHOLD_REACHED"
+            );
         }
     }
 

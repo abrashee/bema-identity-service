@@ -1,5 +1,6 @@
 package com.identity.controller;
 
+import com.identity.audit.SecurityAuditLogger;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -40,6 +41,9 @@ class AuthControllerValidationTest {
 
     @MockBean
     private AccessTokenRevocationService accessTokenRevocationService;
+
+    @MockBean
+    private SecurityAuditLogger auditLogger;
 
     @Test
     void rejectsInvalidLoginEmail() throws Exception {

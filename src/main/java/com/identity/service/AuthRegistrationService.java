@@ -1,5 +1,6 @@
 package com.identity.service;
 
+import com.identity.audit.SecurityAuditLogger;
 import com.identity.dto.AuthResponseDto;
 import com.identity.dto.AuthUserCreateRequest;
 import com.identity.dto.UserResponseDto;
@@ -31,6 +32,7 @@ public class AuthRegistrationService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final WebClient userServiceWebClient;
+    private final SecurityAuditLogger auditLogger;
      private static final Logger log =
             LoggerFactory.getLogger(AuthRegistrationService.class);
 
@@ -39,13 +41,15 @@ public class AuthRegistrationService {
             JwtService jwtService,
             PasswordEncoder passwordEncoder,
             RefreshTokenService refreshTokenService,
-            @Qualifier("userServiceWebClient") WebClient userServiceWebClient
+            @Qualifier("userServiceWebClient") WebClient userServiceWebClient,
+            SecurityAuditLogger auditLogger
     ) {
         this.authUserRepository = authUserRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
         this.userServiceWebClient = userServiceWebClient;
+        this.auditLogger = auditLogger;
     }
 
     @Transactional
@@ -53,6 +57,11 @@ public class AuthRegistrationService {
 
         // 1. Prevent duplicate email early
         if (authUserRepository.findByEmail(request.email()).isPresent()) {
+            auditLogger.failure(
+                    "AUTH_REGISTRATION",
+                    auditLogger.fingerprint(request.email()),
+                    "DUPLICATE_ACCOUNT"
+            );
             throw new AuthException("User already exists");
         }
 
@@ -88,7 +97,16 @@ public class AuthRegistrationService {
                     .toBodilessEntity()
                     .block(Duration.ofSeconds(5));
         } catch (Exception ex) {
-            log.warn("User-service sync failed for identityId={}", entity.getUserId(), ex);
+            log.warn(
+                    "User-service sync failed for identityId={}",
+                    entity.getUserId(),
+                    ex
+            );
+            auditLogger.failure(
+                    "AUTH_REGISTRATION",
+                    entity.getUserId(),
+                    "USER_PROFILE_SYNC_FAILED"
+            );
             throw new AuthException("Registration temporarily unavailable");
         }
 
@@ -98,6 +116,8 @@ public class AuthRegistrationService {
                 entity.getRole().name()
         );
         String refreshToken = refreshTokenService.issueForUser(entity.getUserId());
+
+        auditLogger.success("AUTH_REGISTRATION", entity.getUserId());
 
         return new AuthResponseDto(
                 token,

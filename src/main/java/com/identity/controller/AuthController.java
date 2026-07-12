@@ -1,5 +1,6 @@
 package com.identity.controller;
 
+import com.identity.audit.SecurityAuditLogger;
 import com.identity.dto.ApiResponse;
 import com.identity.dto.AuthResponseDto;
 import com.identity.dto.AuthUserCreateRequest;
@@ -25,19 +26,22 @@ public class AuthController {
     private final RefreshTokenService refreshTokenService;
     private final JwtService jwtService;
     private final AccessTokenRevocationService accessTokenRevocationService;
+    private final SecurityAuditLogger auditLogger;
 
     public AuthController(
             AuthLoginService authLoginService,
             AuthRegistrationService authRegistrationService,
             RefreshTokenService refreshTokenService,
             JwtService jwtService,
-            AccessTokenRevocationService accessTokenRevocationService
+            AccessTokenRevocationService accessTokenRevocationService,
+            SecurityAuditLogger auditLogger
     ) {
         this.authLoginService = authLoginService;
         this.authRegistrationService = authRegistrationService;
         this.refreshTokenService = refreshTokenService;
         this.jwtService = jwtService;
         this.accessTokenRevocationService = accessTokenRevocationService;
+        this.auditLogger = auditLogger;
     }
 
     @PostMapping("/login")
@@ -98,6 +102,8 @@ public class AuthController {
                 accessToken.tokenId(),
                 accessToken.expiresAt()
         );
+
+        auditLogger.success("AUTH_LOGOUT", accessToken.subject());
 
         return ResponseEntity.ok(
                 new ApiResponse<>(

@@ -1,5 +1,6 @@
 package com.identity.service;
 
+import com.identity.audit.SecurityAuditLogger;
 import com.identity.dto.AuthResponseDto;
 import com.identity.dto.LoginRequestDto;
 import com.identity.dto.UserResponseDto;
@@ -19,19 +20,22 @@ public class AuthLoginService {
     private final PasswordEncoder passwordEncoder;
     private final RefreshTokenService refreshTokenService;
     private final LoginBruteForceProtectionService bruteForceProtectionService;
+    private final SecurityAuditLogger auditLogger;
 
     public AuthLoginService(
             AuthUserRepository authUserRepository,
             JwtService jwtService,
             PasswordEncoder passwordEncoder,
             RefreshTokenService refreshTokenService,
-            LoginBruteForceProtectionService bruteForceProtectionService
+            LoginBruteForceProtectionService bruteForceProtectionService,
+            SecurityAuditLogger auditLogger
     ) {
         this.authUserRepository = authUserRepository;
         this.jwtService = jwtService;
         this.passwordEncoder = passwordEncoder;
         this.refreshTokenService = refreshTokenService;
         this.bruteForceProtectionService = bruteForceProtectionService;
+        this.auditLogger = auditLogger;
     }
 
     public AuthResponseDto refresh(String refreshToken) {
@@ -44,6 +48,11 @@ public class AuthLoginService {
         String token = jwtService.generateUserToken(
                 authUser.getUserId(),
                 authUser.getRole().name()
+        );
+
+        auditLogger.success(
+                "AUTH_TOKEN_REFRESH",
+                authUser.getUserId()
         );
 
         return new AuthResponseDto(
@@ -62,6 +71,11 @@ public class AuthLoginService {
         String email = request.getEmail();
 
         if (bruteForceProtectionService.isLocked(email)) {
+            auditLogger.denied(
+                    "AUTH_LOGIN",
+                    auditLogger.fingerprint(email),
+                    "ACCOUNT_LOCKED"
+            );
             throw new AuthException("Invalid credentials");
         }
 
@@ -73,6 +87,13 @@ public class AuthLoginService {
                         authUser.getPasswordHash()
                 )) {
             bruteForceProtectionService.recordFailure(email);
+            auditLogger.failure(
+                    "AUTH_LOGIN",
+                    authUser == null
+                            ? auditLogger.fingerprint(email)
+                            : authUser.getUserId(),
+                    "INVALID_CREDENTIALS"
+            );
             throw new AuthException("Invalid credentials");
         }
 
@@ -84,6 +105,8 @@ public class AuthLoginService {
         );
         String refreshToken =
                 refreshTokenService.issueForUser(authUser.getUserId());
+
+        auditLogger.success("AUTH_LOGIN", authUser.getUserId());
 
         return new AuthResponseDto(
                 token,
