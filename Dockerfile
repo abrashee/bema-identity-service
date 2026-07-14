@@ -8,7 +8,7 @@ COPY src ./src
 RUN mvn clean package -DskipTests
 
 
-FROM eclipse-temurin:21-jdk-jammy
+FROM eclipse-temurin:21-jre-jammy
 
 RUN groupadd --system --gid 10001 bema \
     && useradd --system --uid 10001 --gid bema --home-dir /app --shell /usr/sbin/nologin bema
